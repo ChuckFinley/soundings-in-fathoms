@@ -1,0 +1,52 @@
+Input:
+1) Dive data
+	a) Time
+	b) Depth
+2) Parameters
+	a) Tmin_depth (1m)
+	b) Tledge_depth (.75)
+	c) Tnum_points (1 + [2 x sensory resolution / (temporal resolution x Tvert_vel)]) (or let's say 5)
+	d) Tvert_vel (.35m/s)
+	e) Tdeep_depth (TBD)
+	f) Tbroadness (0.015)
+
+Algorithm:
+1) Split into dives (depth > Tdepth)
+2) Identify start_time, end_time, duration, max_depth, max_depth_time, ledge_depth
+3) Calculate vertical speed
+4) Identify elements (start_time, end_time, type, max_depth, depth_range)
+	a) Wiggle = three points where vertical speed passes below 0 m/s
+	b) Step = period of at least Tno._datapoints points where 0 < vertical speed < Tvert_vel
+5) Identify per-point phase (descent, bottom, ascent).
+	a) Bottom phase begins with first element deeper than ledge_depth, ends with last element deeper than ledge_depth
+	b) Descent phase is everything before bottom phase, ascent phase is everything after
+6) Calculate bottom_start_time, bottom_end_time, bottom_duration, depth_range 
+7) Calculate broadness_index, depth_range_index, symmetry_index, raggedness_index
+8) Identify shape
+	a) V (broadness_index < Tbroadness)
+	b) u (count_wiggles in bottom phase = 0)
+	c) U (count_wiggles in bottom phase >= 2)
+	d) W (count_wiggles in bottom phase with max_depth < ledge_depth >= 1)
+	e) undefined
+
+Output:
+1) Dive vector
+	a) dive_index
+	b) start_time
+	c) end_time
+	d) duration
+	e) max_depth
+	f) max_depth_time
+	g) ledge_depth
+	h) count_elements
+	i) count_wiggles
+	j) count_steps
+	k) bottom_start_time
+	l) bottom_end_time
+	m) bottom_duration
+	n) depth_range
+	o) broadness_index
+	p) depth_range_index
+	q) symmetry_index
+	r) raggedness_index
+	s) shape
