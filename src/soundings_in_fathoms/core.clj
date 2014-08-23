@@ -15,7 +15,7 @@
 	(drop-while #(>= (:depth %) Tmin-depth) dive-data))
 
 (defn split-dives-at-surface
-	"Splits dive data by comparing depth to the Tmin-depth threshold"
+	"Splits dive data into surface and submerged periods by comparing depth to the Tmin-depth threshold"
 	[dive-data]
 	(partition-by #(< (:depth %) Tmin-depth) dive-data))
 
