@@ -1,7 +1,7 @@
 (ns soundings-in-fathoms.core)
 
-(def Tmin-depth 1)
 
+;;; Helper function to get data until I/O is implemented
 (defn get-dive-data
 	"Returns time and depth data, as from a TDR, in two vectors"
 	[]
@@ -9,6 +9,14 @@
 		  depth [0 1 2 3 2 1 0 1 2 1 0 1 2 4 2 1 0]]
 		  (map (fn [t d] {:time t :depth d}) time depth)))
 
+
+;;; Thresholds
+(def Tmin-depth 1)
+
+
+;;; STEP 1: Split datapoints into dives
+
+;; Substeps
 (defn drop-leading-dive-points
 	"Drop leading points that start mid-dive. Dive data should begin with surface time."
 	[dive-data]
@@ -29,7 +37,8 @@
 	[dive-data]
 	(apply concat dive-data))
 
-(defn identify-dive-indices
+;; Full step
+(defn identify-dives
 	"Takes dive data (time and depth vectors, e.g. from get-dive-data) and adds a third vector for dive indices. Drops leading points that are mid-dive."
 	[dive-data]
 	(->> dive-data
@@ -37,3 +46,23 @@
 		 split-dives-at-surface
 		 assign-dive-indices
 		 rejoin-dives))
+
+
+;;; STEP 2: Get dive descriptions (name pending). These are the simple stats that
+;;; can be calculated from dive datapoints alone - no derived variables needed (e.g.
+;;; vertical velocity)
+
+;; Substeps
+
+;; Full step
+(defn get-dive-descriptions)
+
+
+;;; ALL TOGETHER NOW: Thread data through all steps and spit out dive statistics.
+
+(defn analyze-dives
+	"Takes dive data from a TDR and outputs dive statistics. See outline.txt for full list of stats."
+	[dive-data]
+	(->> dive-data
+		 identify-dives
+		 get-dive-descriptions))
