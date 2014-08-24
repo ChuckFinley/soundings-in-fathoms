@@ -104,6 +104,40 @@
 	 				   discard-surface-periods
 					   partition-dives
 					   get-dive-descriptions)})
+					   
+					   
+;;; STEP 3: Calculate vertical velocity
+
+;; Substeps
+(defn vert-vel
+	"Calculate the vertical velocity of a point."
+	[{t1 :time d1 :depth} {t2 :time d2 :depth}]
+	(/ (- d2 d1) (- t2 t1)))
+
+(defn assoc-vert-vel
+	"Given two points, associate the first point's vertical velocity."
+	[[p1 p2]]
+	(assoc p1 :vert-vel (vert-vel p1 p2)))
+
+(defn assoc-final-vert-vel
+	"Last point doesn't have a next point, so vertical velocity is 0."
+	[last-point dive-points]
+	(conj dive-points (assoc last-point :vert-vel 0)))
+
+(defn map-vert-vel
+	"Given the list of dive points, calculate vertical velocity at each point."
+	[dive-points]
+	(->> dive-points
+		 (partition 2 1)
+		 (map assoc-vert-vel)
+		 (assoc-final-vert-vel (last dive-points))))
+
+;; Full step
+(defn calc-vert-vel
+	"Calculate vertical velocity as forward slope of depth over time."
+	[{:keys [dive-points dive-stats]}]
+	{:dive-points (map-vert-vel dive-points)
+	 :dive-stats dive-stats})
 
 
 ;;; ALL TOGETHER NOW: Thread data through all steps and spit out dive statistics.
@@ -113,4 +147,5 @@
 	[dive-data]
 	(->> dive-data
 		 identify-dives
-		 describe-dives))
+		 describe-dives
+		 calc-vert-vel))
