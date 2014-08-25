@@ -5,14 +5,15 @@
 (defn get-dive-data
 	"Returns time and depth data, as from a TDR, in two vectors"
 	[]
-	(let [time (vec (range 17))
-		  depth [0 1 2 3 2 1 0 1 2 1 0 1 2 4 2 1 0]]
+	(let [depth [0 1 2 3 2 3 4 3 4 3 2 1 0 0 0 1 2 2.2 2.4 2.6 2.8 3.0 4 4 3 2 1 0]
+		  time (vec (range (count depth)))]
 		  (map (fn [t d] {:time t :depth d}) time depth)))
 
 
 ;;; Thresholds
 (def Tmin-depth 1)
 (def Tledge-depth 0.75)
+(def Tno.-datapoints 5)
 
 
 ;;; STEP 1: Split datapoints into dives
@@ -57,7 +58,7 @@
 (defn partition-dives
 	"Partitions the dives into nested lists."
 	[dive-data]
-	(partition-by (partial :dive-idx) dive-data))
+	(partition-by :dive-idx dive-data))
 
 (defn get-max-depth-time
 	"Given a list of dive points and a max depth, get the first time
@@ -122,15 +123,15 @@
 (defn assoc-final-vert-vel
 	"Last point doesn't have a next point, so vertical velocity is 0."
 	[last-point dive-points]
-	(conj dive-points (assoc last-point :vert-vel 0)))
+	(concat dive-points [(assoc last-point :vert-vel 0)]))
 
 (defn map-vert-vel
 	"Given the list of dive points, calculate vertical velocity at each point."
 	[dive-points]
 	(->> dive-points
 		 (partition 2 1)
-		 (map assoc-vert-vel)
-		 (assoc-final-vert-vel (last dive-points))))
+	 	 (map assoc-vert-vel)
+	 	 (assoc-final-vert-vel (last dive-points))))
 
 ;; Full step
 (defn calc-vert-vel
@@ -138,6 +139,70 @@
 	[{:keys [dive-points dive-stats]}]
 	{:dive-points (map-vert-vel dive-points)
 	 :dive-stats dive-stats})
+
+
+;;; STEP 4: Identify elements
+
+;; 4) Identify elements (start_time, end_time, type, max_depth, depth_range)
+;;	a) Wiggle = three points where vertical speed passes below 0 m/s
+;;	b) Step = period of at least Tno._datapoints points where 0 < vertical speed < ;; Tvert_vel
+
+;; Substeps
+(defn extract-wiggles
+	"Takes partitions of neg pos neg vert-vel and returns element description."
+	[wiggle]
+	(let [w 	 	 (flatten wiggle)
+		  times		 (map :time w)
+		  depths	 (map :depth w)
+		  start-time (first times)
+		  end-time	 (last times)
+		  min-depth	 (apply min depths)
+		  max-depth	 (apply max depths)]
+		{:type		  :wiggle
+		 :dive-idx	  (:dive-idx (first w))
+		 :start-time  start-time
+		 :end-time	  end-time
+		 :duration    (- end-time start-time)
+		 :min-depth	  min-depth
+		 :max-depth	  max-depth
+		 :depth-range (- max-depth min-depth)}))
+
+(defn find-wiggles-in-dive
+	"Given a dive partition, find all wiggles. Wiggle = three points where vertical speed passes below 0 m/s, which is equivalent to a sequence of neg, pos, neg vert-vel."
+	[dive-partition]
+	(->> dive-partition
+		 (filter (comp not zero? :vert-vel))
+		 (partition-by :vert-vel)
+		 (drop 1)
+		 (partition 3)
+		 (map extract-wiggles)))
+	
+(defn find-wiggles
+	"Find wiggles in each dive. Wiggle = three points where vertical speed passes below 0 m/s."
+	[dive-partitions]
+	{:dive-partitions	dive-partitions
+	 :elements			(->> dive-partitions
+	 						 (map find-wiggles-in-dive)
+							 flatten)})
+	
+(defn get-elements
+	"Takes the dive points and returns a collection of elements."
+	[dive-points]
+	(->> dive-points
+		 (filter (comp pos? :dive-idx))
+		 (partition-by :dive-idx)
+		 (find-wiggles)
+		 (:elements)))
+
+;; Full step
+(defn identify-elements
+	"Takes dive points and dive stats, finds all the elements in each dive, and
+	adds them to an elements collection."
+	[{:keys [dive-points dive-stats]}]
+	{:dive-points	dive-points
+	 :elements		(get-elements dive-points)
+	 :dive-stats	dive-stats})
+
 
 
 ;;; ALL TOGETHER NOW: Thread data through all steps and spit out dive statistics.
@@ -148,4 +213,5 @@
 	(->> dive-data
 		 identify-dives
 		 describe-dives
-		 calc-vert-vel))
+		 calc-vert-vel
+		 identify-elements))
