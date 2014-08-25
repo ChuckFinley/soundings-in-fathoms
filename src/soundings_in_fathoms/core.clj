@@ -5,7 +5,7 @@
 (defn get-dive-data
 	"Returns time and depth data, as from a TDR, in two vectors"
 	[]
-	(let [depth [0 1 2 3 2 3 4 3 4 3 2 1 0 0 0 1 2 2.2 2.4 2.6 2.8 3.0 4 4 3 2 1 0]
+	(let [depth [0 1 2 3 2 3 4 3 4 3 2 1 0 0 0 1 2 2.2 2.4 2.6 2.8 3.0 3.2 4 4 3 2 1 0]
 		  time (vec (range (count depth)))]
 		  (map (fn [t d] {:time t :depth d}) time depth)))
 
@@ -13,7 +13,8 @@
 ;;; Thresholds
 (def Tmin-depth 1)
 (def Tledge-depth 0.75)
-(def Tno.-datapoints 5)
+(def Tno-datapoints 5)
+(def Tvert-vel 0.35)
 
 
 ;;; STEP 1: Split datapoints into dives
@@ -148,18 +149,19 @@
 ;;	b) Step = period of at least Tno._datapoints points where 0 < vertical speed < ;; Tvert_vel
 
 ;; Substeps
-(defn extract-wiggles
-	"Takes partitions of neg pos neg vert-vel and returns element description."
-	[wiggle]
-	(let [w 	 	 (flatten wiggle)
-		  times		 (map :time w)
-		  depths	 (map :depth w)
+
+(defn extract-element
+	"Takes partitions of points in an element and the element type. Returns element description."
+	[type element]
+	(let [e 	 	 (flatten element)
+		  times		 (map :time e)
+		  depths	 (map :depth e)
 		  start-time (first times)
 		  end-time	 (last times)
 		  min-depth	 (apply min depths)
 		  max-depth	 (apply max depths)]
-		{:type		  :wiggle
-		 :dive-idx	  (:dive-idx (first w))
+		{:type		  type
+		 :dive-idx	  (:dive-idx (first e))
 		 :start-time  start-time
 		 :end-time	  end-time
 		 :duration    (- end-time start-time)
@@ -172,10 +174,10 @@
 	[dive-partition]
 	(->> dive-partition
 		 (filter (comp not zero? :vert-vel))
-		 (partition-by :vert-vel)
+		 (partition-by (comp pos? :vert-vel))
 		 (drop 1)
-		 (partition 3)
-		 (map extract-wiggles)))
+		 (partition 3 2)
+		 (map (partial extract-element :wiggle))))
 	
 (defn find-wiggles
 	"Find wiggles in each dive. Wiggle = three points where vertical speed passes below 0 m/s."
@@ -184,6 +186,33 @@
 	 :elements			(->> dive-partitions
 	 						 (map find-wiggles-in-dive)
 							 flatten)})
+
+(defn assoc-step-vel
+	[dive-point]
+	(let [vert-vel (:vert-vel dive-point)]
+		(assoc dive-point :step-vel (and (> vert-vel 0) (< vert-vel Tvert-vel)))))
+
+(defn valid-step?
+	[step-partition]
+	(and 
+		((comp true? :step-vel first) step-partition) 
+		(>= (count step-partition) Tno-datapoints)))
+
+(defn find-steps-in-dive
+	"Given a dive partition, find all steps."
+	[dive-partition]
+	(->> dive-partition
+		 (map assoc-step-vel)
+		 (partition-by :step-vel)
+		 (filter valid-step?)
+		 (map (partial extract-element :step))))
+
+(defn find-steps
+	"Find steps in each dive. Step = period of at least Tno._datapoints points where 0 < vertical speed < Tvert_vel"
+	[{:keys [dive-partitions elements]}]
+	(concat elements (->> dive-partitions
+						  (map find-steps-in-dive)
+						  flatten)))
 	
 (defn get-elements
 	"Takes the dive points and returns a collection of elements."
@@ -192,7 +221,7 @@
 		 (filter (comp pos? :dive-idx))
 		 (partition-by :dive-idx)
 		 (find-wiggles)
-		 (:elements)))
+		 (find-steps)))
 
 ;; Full step
 (defn identify-elements
