@@ -17,6 +17,19 @@
 (def Tvert-vel 0.35)
 
 
+;;; Utility functions
+
+(defn dives-only
+	"Takes a function and only applies it to dives (ignoring inter-dive periods)."
+	[function dive]
+	(if (pos? (:dive-idx dive)) (function dive) dive))
+
+(defn get-bottom-elements
+	"Takes a dive and its elements. Returns only the elements in the bottom phase."
+	[{:keys [ledge-depth elements]}]
+	(seq (filter #(>= (:min-depth %) ledge-depth) elements)))
+
+
 ;;; STEP 1: Split datapoints into dives
 
 ;; Substeps
@@ -244,7 +257,7 @@
 
 (defn label-phase-at-point
 	"Takes a point and the bottom range and returns which phase the point is in."
-	[bottom-begin bottom-end point]
+	[{:keys [bottom-begin bottom-end]} point]
 	(let [time (:time point)]
 		(if (< time bottom-begin) (assoc point :phase :descent)
 		(if (> time bottom-end)	  (assoc point :phase :ascent)
@@ -254,8 +267,8 @@
 	"Takes elements, ledge-depth, and max-depth-time and returns the start and
 	end of the bottom phase. If there is no bottom phase, then max-depth-time
 	marks the barrier."
-	[elements ledge-depth max-depth-time]
-	(if-let [bottom-elements (seq (filter #(>= (:min-depth %) ledge-depth) elements))]
+	[{:keys [elements ledge-depth max-depth-time] :as dive}]
+	(if-let [bottom-elements (get-bottom-elements dive)]
 		{:bottom-begin (->> bottom-elements first :start-time)
 		 :bottom-end   (->> bottom-elements last :end-time)}
 		{:bottom-begin max-depth-time
@@ -264,10 +277,9 @@
 (defn label-phases-in-dive
 	"Takes a dive partition and adds phases to dive points."
 	[{:keys [dive-points elements ledge-depth max-depth-time] :as dive-partition}]
-	(let [{:keys [bottom-begin bottom-end]} 
-		  (get-bottom-phase-times elements ledge-depth max-depth-time)]
-		(let [labeled-points
-			  (map (partial label-phase-at-point bottom-begin bottom-end) dive-points)]
+	(let [bottom-bounds (get-bottom-phase-times dive-partition)]
+		(let [labeled-points 
+			  (map (partial label-phase-at-point bottom-bounds) dive-points)]
 			(assoc dive-partition :dive-points labeled-points))))
 
 ;; Full step
@@ -277,8 +289,37 @@
 	and ascent phase are all points before and after, respectively. Only run
 	on dives, not inter-dive periods."
 	[dive-data]
-	(map #(if (pos? (:dive-idx %)) (label-phases-in-dive %) %) dive-data))
+	(map (partial dives-only label-phases-in-dive) dive-data))
+	
+	
+;;; STEP 6: Describe bottom phase
 
+;; Substeps
+(defn describe-bottom-phase-in-dive
+	"Given a dive, calculate bottom_start_time, bottom_end_time, bottom_duration,
+	depth_range, and count_wiggles."
+	[{:keys [dive-points elements ledge-depth] :as dive-partition}]
+	(let [bottom-points 	(filter #(= :bottom (:phase %)) dive-points)
+		  bottom-start-time (apply min (map :time bottom-points))
+		  bottom-end-time	(apply max (map :time bottom-points))
+		  bottom-duration	(- bottom-end-time bottom-start-time)
+		  depths			(map :depth bottom-points)
+		  depth-range		(- (apply max depths) (apply min depths))]
+		(assoc dive-partition :bottom-phase 
+			{:bottom-start-time bottom-start-time
+			 :bottom-end-time	bottom-end-time
+			 :bottom-duration	bottom-duration
+			 :depth-range		depth-range
+			 :count-wiggles
+			 	(if-let [bottom-elements (get-bottom-elements dive-partition)]
+					(count (filter #(= :wiggle %) (map :type bottom-elements)))
+					0)})))
+
+;; Full step
+(defn describe-bottom-phase
+	"Calculate bottom_start_time, bottom_end_time, bottom_duration, depth_range."
+	[dive-data]
+	(map (partial dives-only describe-bottom-phase-in-dive) dive-data))
 
 
 ;;; ALL TOGETHER NOW: Thread data through all steps and spit out dive statistics.
@@ -292,4 +333,5 @@
 		 partition-dives
 		 calc-vert-vel
 		 identify-elements
-		 identify-phases))
+		 identify-phases
+		 describe-bottom-phase))
