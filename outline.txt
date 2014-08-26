@@ -12,7 +12,7 @@ Input:
 
 Algorithm:
 1) Split into dives (depth > Tdepth)
-2) Identify start_time, end_time, duration, max_depth, max_depth_time, ledge_depth
+2) Describe dives. Associate start_time, end_time, duration, max_depth, max_depth_time, ledge_depth
 3) Calculate vertical speed
 4) Identify elements (start_time, end_time, type, max_depth, depth_range)
 	a) Wiggle = three points where vertical speed passes below 0 m/s
