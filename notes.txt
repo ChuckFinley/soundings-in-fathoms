@@ -1,0 +1,8 @@
+Useful in REPL:
+(analyze-dives (get-dive-data))
+
+(use 'clojure.stacktrace)
+(print-stack-trace *e 15)
+
+(use 'clojure.tools.trace)
+(trace-forms (analyze-dives (get-dive-data)))
