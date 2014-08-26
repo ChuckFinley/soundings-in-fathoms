@@ -6,7 +6,7 @@ Output: ({:dive-idx
 		  :depth 
 		  :time})
 
-STEP 2: Describe dives.
+STEP 2: Describe dives
 Output:	({:dive-idx
  		  :start-time
 		  :end-time
@@ -47,3 +47,106 @@ Output:	({:dive-idx
 					  :min-depth
 					  :max-depth
 					  :depth-range}))
+
+STEP 5: Identify phases
+Output:	({:dive-idx
+ 		  :start-time
+		  :end-time
+		  :duration
+		  :max-depth
+		  :max-depth-time
+		  :ledge-depth
+		  :dive-points ({:depth 
+		  				 :time
+						 :vert-vel
+						 :phase})
+		  :elements ({:type
+		 			  :start-time
+					  :end-time
+					  :duration
+					  :min-depth
+					  :max-depth
+					  :depth-range}))
+
+STEP 6: Describe bottom phase
+Output:	({:dive-idx
+ 		  :start-time
+		  :end-time
+		  :duration
+		  :max-depth
+		  :max-depth-time
+		  :ledge-depth
+		  :dive-points ({:depth 
+		  				 :time
+						 :vert-vel
+						 :phase})
+		  :elements ({:type
+		 			  :start-time
+					  :end-time
+					  :duration
+					  :min-depth
+					  :max-depth
+					  :depth-range})
+		  :bottom-phase ({:bottom-start-time
+		  				  :bottom-end-time
+						  :bottom-duration
+						  :depth-range
+						  :count-wiggles}))
+
+STEP 7: Overall dive shape descriptions
+Output:	({:dive-idx
+ 		  :start-time
+		  :end-time
+		  :duration
+		  :max-depth
+		  :max-depth-time
+		  :ledge-depth
+		  :dive-points ({:depth 
+		  				 :time
+						 :vert-vel
+						 :phase})
+		  :elements ({:type
+		 			  :start-time
+					  :end-time
+					  :duration
+					  :min-depth
+					  :max-depth
+					  :depth-range})
+		  :bottom-phase ({:bottom-start-time
+		  				  :bottom-end-time
+						  :bottom-duration
+						  :depth-range})
+		  :dive-shape ({:broadness-idx 
+		  				:depth-range-idx 
+						:symmetry-idx 
+						:raggedness-idx}))
+
+STEP 8: Categorize dive shape
+Output:	({:dive-idx
+ 		  :start-time
+		  :end-time
+		  :duration
+		  :max-depth
+		  :max-depth-time
+		  :ledge-depth
+		  :dive-points ({:depth 
+		  				 :time
+						 :vert-vel
+						 :phase})
+		  :elements ({:type
+		 			  :start-time
+					  :end-time
+					  :duration
+					  :min-depth
+					  :max-depth
+					  :depth-range})
+		  :bottom-phase ({:bottom-start-time
+		  				  :bottom-end-time
+						  :bottom-duration
+						  :depth-range})
+		  :dive-shape ({:shape-cat
+		  				:broadness-idx 
+		  				:depth-range-idx 
+						:symmetry-idx 
+						:raggedness-idx}))
+

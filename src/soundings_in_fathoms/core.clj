@@ -232,6 +232,52 @@
 	(->> dive-data
 		 (map identify-wiggles)
 		 (map identify-steps)))
+		 
+		 
+;;; STEP 5: Identify phases
+;;; a) Bottom phase begins with first element deeper than ledge_depth,  
+;;;	ends with last element deeper than ledge_depth
+;;;	b) Descent phase is everything before bottom phase, ascent phase is  
+;;;	everything after
+
+;; Substeps
+
+(defn label-phase-at-point
+	"Takes a point and the bottom range and returns which phase the point is in."
+	[bottom-begin bottom-end point]
+	(let [time (:time point)]
+		(if (< time bottom-begin) (assoc point :phase :descent)
+		(if (> time bottom-end)	  (assoc point :phase :ascent)
+								  (assoc point :phase :bottom)))))
+	
+(defn get-bottom-phase-times
+	"Takes elements, ledge-depth, and max-depth-time and returns the start and
+	end of the bottom phase. If there is no bottom phase, then max-depth-time
+	marks the barrier."
+	[elements ledge-depth max-depth-time]
+	(if-let [bottom-elements (seq (filter #(>= (:min-depth %) ledge-depth) elements))]
+		{:bottom-begin (->> bottom-elements first :start-time)
+		 :bottom-end   (->> bottom-elements last :end-time)}
+		{:bottom-begin max-depth-time
+		 :bottom-end   max-depth-time}))
+
+(defn label-phases-in-dive
+	"Takes a dive partition and adds phases to dive points."
+	[{:keys [dive-points elements ledge-depth max-depth-time] :as dive-partition}]
+	(let [{:keys [bottom-begin bottom-end]} 
+		  (get-bottom-phase-times elements ledge-depth max-depth-time)]
+		(let [labeled-points
+			  (map (partial label-phase-at-point bottom-begin bottom-end) dive-points)]
+			(assoc dive-partition :dive-points labeled-points))))
+
+;; Full step
+
+(defn identify-phases
+	"In each dive, finds bottom phase using elements and ledge depth. Descent 
+	and ascent phase are all points before and after, respectively. Only run
+	on dives, not inter-dive periods."
+	[dive-data]
+	(map #(if (pos? (:dive-idx %)) (label-phases-in-dive %) %) dive-data))
 
 
 
@@ -245,4 +291,5 @@
 		 identify-dives
 		 partition-dives
 		 calc-vert-vel
-		 identify-elements))
+		 identify-elements
+		 identify-phases))
