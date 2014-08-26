@@ -1,0 +1,49 @@
+Input: ({:depth 
+		 :time})
+
+STEP 1: Split datapoints into dives	
+Output: ({:dive-idx 
+		  :depth 
+		  :time})
+
+STEP 2: Describe dives.
+Output:	({:dive-idx
+ 		  :start-time
+		  :end-time
+		  :duration
+		  :max-depth
+		  :max-depth-time
+		  :ledge-depth
+		  :dive-points ({:depth 
+		  				 :time}))
+
+STEP 3: Calculate vertical velocity
+Output:	({:dive-idx
+ 		  :start-time
+		  :end-time
+		  :duration
+		  :max-depth
+		  :max-depth-time
+		  :ledge-depth
+		  :dive-points ({:depth 
+		  				 :time
+						 :vert-vel}))
+
+STEP 4: Identify elements
+Output:	({:dive-idx
+ 		  :start-time
+		  :end-time
+		  :duration
+		  :max-depth
+		  :max-depth-time
+		  :ledge-depth
+		  :dive-points ({:depth 
+		  				 :time
+						 :vert-vel})
+		  :elements ({:type
+		 			  :start-time
+					  :end-time
+					  :duration
+					  :min-depth
+					  :max-depth
+					  :depth-range}))
