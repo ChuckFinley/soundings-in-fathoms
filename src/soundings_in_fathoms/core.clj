@@ -320,6 +320,56 @@
 	"Calculate bottom_start_time, bottom_end_time, bottom_duration, depth_range."
 	[dive-data]
 	(map (partial dives-only describe-bottom-phase-in-dive) dive-data))
+	
+	
+;;; STEP 7: Describe dive shape
+;;; broadness-idx, depth-range-idx, symmetry-idx, raggedness-idx
+
+;; Substeps
+(defn get-broadness-idx
+	"broadness_index = bottom duration / dive duration"
+	[{{bottom-duration :bottom-duration} :bottom-phase
+	 duration :duration}]
+	(/ bottom-duration duration))
+
+(defn get-depth-range-idx
+	"depth_range_index = depth_range_index = depth range / max depth"
+	[{{depth-range :depth-range} :bottom-phase
+	 max-depth :max-depth}]
+	(/ depth-range max-depth))
+	
+(defn get-symmetry-idx
+	"symmetry_index = (max depth time - bottom time begin) / bottom duration"
+	[{max-depth-time :max-depth-time
+	 {bottom-start-time :bottom-start-time
+	  bottom-duration :bottom-duration} :bottom-phase}]
+	(if (pos? bottom-duration)
+		(/ (- max-depth-time bottom-start-time) bottom-duration)
+		0))
+
+(defn get-raggedness-idx
+	"raggedness_index = sum of wiggle depth ranges in bottom phase"
+	[dive-partition]
+	(let [bottom-elements (get-bottom-elements dive-partition)
+		  bottom-wiggles  (filter #(= :wiggle (:type %)) bottom-elements)
+		  depth-ranges	  (map :depth-range bottom-wiggles)]
+		(reduce + depth-ranges)))
+
+(defn describe-dive-shape-in-dive
+	"Given a dive, calculate broadness_index, depth_range_index, symmetry_index,
+	and raggedness_index."
+	[dive-partition]
+	  (assoc dive-partition :dive-shape 
+		  {:broadness-idx	(get-broadness-idx 	 dive-partition)
+		   :depth-range-idx (get-depth-range-idx dive-partition)
+		   :symmetry-idx	(get-symmetry-idx 	 dive-partition)
+		   :raggedness-idx 	(get-raggedness-idx  dive-partition)}))
+
+;; Full step
+(defn describe-dive-shape
+	"Calculate broadness-idx, depth-range-idx, symmetry-idx, raggedness-idx."
+	[dive-data]
+	(map (partial dives-only describe-dive-shape-in-dive) dive-data))
 
 
 ;;; ALL TOGETHER NOW: Thread data through all steps and spit out dive statistics.
@@ -334,4 +384,5 @@
 		 calc-vert-vel
 		 identify-elements
 		 identify-phases
-		 describe-bottom-phase))
+		 describe-bottom-phase
+		 describe-dive-shape))

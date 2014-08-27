@@ -21,7 +21,11 @@ Algorithm:
 	a) Bottom phase begins with first element deeper than ledge_depth, ends with last element deeper than ledge_depth
 	b) Descent phase is everything before bottom phase, ascent phase is everything after
 6) Calculate bottom_start_time, bottom_end_time, bottom_duration, depth_range 
-7) Calculate broadness_index, depth_range_index, symmetry_index, raggedness_index
+7) Calculate: 
+	broadness_index = bottom duration / dive duration
+	depth_range_index = depth range / max depth
+	symmetry_index = (max depth time - bottom time begin) / bottom duration
+	raggedness_index = sum of wiggle depth ranges
 8) Identify shape
 	a) V (broadness_index < Tbroadness)
 	b) u (count_wiggles in bottom phase = 0)
