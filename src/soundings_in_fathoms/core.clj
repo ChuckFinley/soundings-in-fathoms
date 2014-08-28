@@ -424,48 +424,53 @@
 ;;; STEP 8: Categorize dive shape
 
 ;; Substeps
+(defn match [subject & clauses]
+	{:pre (even? (count clauses))}
+	(->> (partition 2 clauses)
+		(map (fn [[test result]] (if (test subject) result)))
+		(filter true?)
+		first))
+
 (defn V-dive?
 	"Checks a dive against the V shape parameters: 
 	broadness_index < Tbroadness"
 	[{{broadness-idx :broadness-idx} :dive-shape}]
-	(if (< broadness-idx Tbroadness) :V))
+	(< broadness-idx Tbroadness))
 
 (defn u-dive?
 	"Checks a dive against the u shape parameters: 
 	count_wiggles in bottom phase = 1"
-	[dive-partition]
-	(if (= 1 (count (get-bottom-wiggles dive-partition))) :u))
+	[{{count-wiggles :count-wiggles} :bottom-phase}]
+	(= count-wiggles 1))
 
 (defn U-dive?
 	"Checks a dive against the u shape parameters: 
 	count_wiggles in bottom phase >= 2"
-	[{{count-wiggles :count-wiggles} :bottom-phase :as dive-partition}]
-	(if (>= count-wiggles 2) :U))
+	[{{count-wiggles :count-wiggles} :bottom-phase}]
+	(>= count-wiggles 2))
 
 (defn W-dive?
 	"Checks a dive against the u shape parameters: 
 	count_wiggles in bottom phase with max_depth < ledge_depth >= 1"
-	[dive-partition]
+	[{:keys [ledge-depth] :as dive-partition}]
 	(let [bottom-wiggles (get-bottom-wiggles dive-partition)
-		  ledge-depth	 (:ledge-depth dive-partition)
 		  W-wiggles		 (filter #(< (:max-depth %) ledge-depth) bottom-wiggles)]
-		(if (pos? (count W-wiggles)) :W)))
+		(pos? (count W-wiggles))))
 
-(defn undefined-dive?
+(defn undef-dive?
 	"If no other dive shape applies."
 	[dive-partition]
 	:undefined)
 
 (defn get-shape-category
-	"Categorize shape by:
-	 a) V (broadness_index < Tbroadness)
-	 b) u (count_wiggles in bottom phase = 0)
-	 c) U (count_wiggles in bottom phase >= 2)
-	 d) W (count_wiggles in bottom phase with max_depth < ledge_depth >= 1)
-	 e) undefined"
+	"Match dive against shape conditions."
 	[dive-partition]
-	(let [dive-shape-tests [V-dive? u-dive? U-dive? W-dive? undefined-dive?]]
-		(first (filter identity (map #(% dive-partition) dive-shape-tests)))))
+	(match dive-partition
+		V-dive? :V
+		u-dive? :u
+		U-dive? :U
+		W-dive? :W
+		undef-dive? :undefined))
 
 (defn categorize-dive-shape-in-dive
 	"Assoc shape category in dive shape hash."
