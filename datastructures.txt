@@ -48,7 +48,8 @@ Output:	({:dive-idx
 					  :max-depth
 					  :depth-range}))
 
-STEP 5: Identify phases
+STEP 5: Get bottom phase start and end time AND Identify phases
+NOTE: UGH, break this into two parts
 Output:	({:dive-idx
  		  :start-time
 		  :end-time
@@ -66,7 +67,9 @@ Output:	({:dive-idx
 					  :duration
 					  :min-depth
 					  :max-depth
-					  :depth-range}))
+					  :depth-range})
+		  :bottom-phase {:bottom-start-time
+		  				 :bottom-end-time})
 
 STEP 6: Describe bottom phase
 Output:	({:dive-idx
@@ -87,11 +90,11 @@ Output:	({:dive-idx
 					  :min-depth
 					  :max-depth
 					  :depth-range})
-		  :bottom-phase ({:bottom-start-time
-		  				  :bottom-end-time
-						  :bottom-duration
-						  :depth-range
-						  :count-wiggles}))
+		  :bottom-phase {:bottom-start-time
+		  				 :bottom-end-time
+						 :bottom-duration
+						 :depth-range
+						 :count-wiggles})
 
 STEP 7: Overall dive shape descriptions
 Output:	({:dive-idx
@@ -112,14 +115,15 @@ Output:	({:dive-idx
 					  :min-depth
 					  :max-depth
 					  :depth-range})
-		  :bottom-phase ({:bottom-start-time
-		  				  :bottom-end-time
-						  :bottom-duration
-						  :depth-range})
-		  :dive-shape ({:broadness-idx 
-		  				:depth-range-idx 
-						:symmetry-idx 
-						:raggedness-idx}))
+		  :bottom-phase {:bottom-start-time
+		  				 :bottom-end-time
+						 :bottom-duration
+						 :depth-range
+						 :count-wiggles}
+		  :dive-shape {:broadness-idx 
+		  			   :depth-range-idx 
+					   :symmetry-idx 
+					   :raggedness-idx})
 
 STEP 8: Categorize dive shape
 Output:	({:dive-idx
@@ -140,13 +144,14 @@ Output:	({:dive-idx
 					  :min-depth
 					  :max-depth
 					  :depth-range})
-		  :bottom-phase ({:bottom-start-time
-		  				  :bottom-end-time
-						  :bottom-duration
-						  :depth-range})
-		  :dive-shape ({:shape-cat
-		  				:broadness-idx 
-		  				:depth-range-idx 
-						:symmetry-idx 
-						:raggedness-idx}))
+		  :bottom-phase {:bottom-start-time
+		  				 :bottom-end-time
+						 :bottom-duration
+						 :depth-range
+						 :count-wiggles}
+		  :dive-shape {:shape-category
+		  			   :broadness-idx 
+		  			   :depth-range-idx 
+					   :symmetry-idx 
+					   :raggedness-idx})
 

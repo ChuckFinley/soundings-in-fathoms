@@ -28,7 +28,7 @@ Algorithm:
 	raggedness_index = sum of wiggle depth ranges
 8) Identify shape
 	a) V (broadness_index < Tbroadness)
-	b) u (count_wiggles in bottom phase = 0)
+	b) u (count_wiggles in bottom phase = 1) [NOTE: this is different than in paper.]
 	c) U (count_wiggles in bottom phase >= 2)
 	d) W (count_wiggles in bottom phase with max_depth < ledge_depth >= 1)
 	e) undefined
