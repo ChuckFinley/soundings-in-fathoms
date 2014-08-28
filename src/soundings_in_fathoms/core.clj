@@ -7,7 +7,7 @@
 	[]
 	(let [depth [0 1 2 3 2 3 4 3 4 3 2 1 0 0 0 1 2 2.2 2.4 2.6 2.8 3.0 3.2 4 4 3 2 1 0]
 		  time (vec (range (count depth)))]
-		  (map (fn [t d] {:time t :depth d}) time depth)))
+		  (map #(zipmap [:time :depth] [%1 %2]) time depth)))
 
 
 ;;; Thresholds
