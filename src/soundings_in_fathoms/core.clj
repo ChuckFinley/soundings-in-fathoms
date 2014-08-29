@@ -20,10 +20,27 @@
 
 ;;; Utility functions
 
-(defn dives-only
+(defn condu [expr & clauses]
+	"Like cond, but takes unary functions (hence the u in the name). Clauses must
+	take the form of:
+	
+	unary-fn result-expr
+	
+	For each clause (unary-fn expr) is evaluated. If it returns logical true, the
+	clause is a match and result-expr is returned. May be terminated by a single
+	expression for the default case"
+	(case (count clauses)
+		0 (throw (Exception. "No matching conditions"))
+		1 (first clauses)	; Default case
+		(let [[unary-fn result-expr & next-clauses] clauses]
+			(if (unary-fn expr) result-expr (apply condu expr next-clauses)))))
+
+(defn map-dives-only
 	"Takes a function and only applies it to dives (ignoring inter-dive periods)."
-	[function dive]
-	(if (pos? (:dive-idx dive)) (function dive) dive))
+	[f coll]
+	(let [dives 	  (filter (comp pos? :dive-idx) coll)
+		  inter-dives (filter (comp neg? :dive-idx) coll)]
+		(interleave inter-dives (map f dives))))
 
 (defn bottom-element?
 	"Takes a bottom phase and an element and determines if the latter is in 
@@ -263,15 +280,9 @@
 		 (map identify-steps)))
 		 
 		 
-;;; STEP 5a: Get bottom phase start and end time
-;;; STEP 5b: Identify phases
-;;; a) Bottom phase begins with first element deeper than ledge_depth,  
+;;; STEP 5: Locate bottom phase
+;;; Bottom phase begins with first element deeper than ledge_depth,  
 ;;;	ends with last element deeper than ledge_depth
-;;;	b) Descent phase is everything before bottom phase, ascent phase is  
-;;;	everything after
-
-;;; NOTE: I really don't like this because it's doing two things. Should
-;;; really be refactored.
 
 ;; Substeps
 	
@@ -284,60 +295,72 @@
 (defn find-elements-beneath-ledge
   	"Takes a dive and returns all elements beneath the ledge."
   	[{:keys [ledge-depth elements]}]
-  	(filter (partial beneath-ledge? ledge-depth) elements))
+  	(seq (filter (partial beneath-ledge? ledge-depth) elements)))
 
-(defn get-bottom-phase-bounds-in-dive
-	[{:keys [elements ledge-depth max-depth-time] :as dive-partition}]
-	(assoc dive-partition 
-		   :bottom-phase
-		   (if-let [bottom-elements (seq (find-elements-beneath-ledge dive-partition))]
-		   	{:bottom-start-time (->> bottom-elements first :start-time)
-	 		 :bottom-end-time   (->> bottom-elements last :end-time)}
-			{:bottom-start-time max-depth-time
-		 	 :bottom-end-time   max-depth-time})))
-			 
 (defn get-bottom-phase-bounds
-	[dive-data]
-	(map (partial dives-only get-bottom-phase-bounds-in-dive) dive-data))
+	[{:keys [elements ledge-depth max-depth-time] :as dive-partition}]
+	(if-let [bottom-elements (find-elements-beneath-ledge dive-partition)]
+		[(-> bottom-elements first :start-time) (-> bottom-elements last :end-time)]
+		[max-depth-time max-depth-time]))
+			 
+(defn locate-bottom-phase-in-dive
+	"Gets bottom phase bounds from the first and last element deeper than 
+	the ledge. Duration is the difference."
+	[dive-partition]
+	(let [[begin end] (get-bottom-phase-bounds dive-partition)
+		  duration	  (- end begin)]
+		(assoc dive-partition 
+			:bottom-phase 
+			{:bottom-start-time begin 
+			 :bottom-end-time   end 
+			 :bottom-duration   duration})))
 
-(defn label-phase-at-point
+;; Full step
+
+(defn locate-bottom-phase
+	"In each dive, locates bottom phase using elements and ledge depth."
+	[dive-data]
+	(map-dives-only locate-bottom-phase-in-dive dive-data))
+		 
+		 
+;;; STEP 6: Identify phases
+;;;	Descent phase is everything before bottom phase, ascent phase is  
+;;;	everything after
+
+;; Substeps
+
+(defn identify-phase-at-point
 	"Takes a point and the bottom range and returns which phase the point is in."
 	[{:keys [bottom-start-time bottom-end-time]} point]
-	(if (< (:time point) bottom-start-time) 
-		(assoc point :phase :descent)
-		(if (> (:time point) bottom-end-time)
-			(assoc point :phase :ascent)
-			(assoc point :phase :bottom))))
+	(assoc point
+		:phase
+		(condu (:time point)
+			#(< % bottom-start-time) :descent
+			#(> % bottom-start-time) :ascent
+			:bottom)))
 
-(defn label-phases-in-dive
+(defn identify-phases-in-dive
 	"Takes a dive partition and adds phases to dive points."
 	[{:keys [bottom-phase dive-points] :as dive-partition}]
 	(assoc dive-partition 
-		   :dive-points 
-		   (map (partial label-phase-at-point bottom-phase) dive-points)))
-	
-(defn label-phases
-	[dive-data]
-	(map (partial dives-only label-phases-in-dive) dive-data))
+		:dive-points 
+		(map (partial identify-phase-at-point bottom-phase) dive-points)))
 
-;; Full steps
-
+;; Full step
 (defn identify-phases
-	"In each dive, finds bottom phase using elements and ledge depth. Descent 
-	and ascent phase are all points before and after, respectively. Only run
-	on dives, not inter-dive periods."
+	"Associates a :phase key with each dive-point based on where it is in
+	the dive relative to the bottom phase."
 	[dive-data]
-	(->> dive-data
-		 get-bottom-phase-bounds
-		 label-phases))
+	(map-dives-only identify-phases-in-dive dive-data))
 	
 	
-;;; STEP 6: Describe bottom phase
+;;; STEP 7: Describe bottom phase
 
 ;; Substeps
 (defn bottom-point?
 	[{:keys [bottom-start-time bottom-end-time]} point]
-	(and (>= (:time point) bottom-start-time) (<= (:time point) bottom-end-time)))
+	(and (>= (:time point) bottom-start-time) 
+		 (<= (:time point) bottom-end-time)))
 
 (defn get-bottom-duration
 	[{{:keys [bottom-start-time bottom-end-time]} :bottom-phase}]
@@ -353,27 +376,6 @@
 	[dive-partition]
 	(count (get-bottom-wiggles dive-partition)))
 	
-(defn describe-bottom-phase-in-dive
-	"Given a dive and bottom phase bounds, calculate bottom_duration, 
-	depth_range, and count_wiggles."
-	[dive-partition]
-	(update-in dive-partition 
-			   [:bottom-phase] 
-			   assoc :bottom-duration (get-bottom-duration dive-partition)
-			  		 :depth-range	  (get-depth-range	   dive-partition)
-			   	  	 :count-wiggles	  (get-count-wiggles   dive-partition)))
-
-;; Full step
-(defn describe-bottom-phase
-	"Calculate bottom_duration, depth_range, count_wiggles."
-	[dive-data]
-	(map (partial dives-only describe-bottom-phase-in-dive) dive-data))
-	
-	
-;;; STEP 7: Describe dive shape
-;;; broadness-idx, depth-range-idx, symmetry-idx, raggedness-idx
-
-;; Substeps
 (defn get-broadness-idx
 	"broadness_index = bottom duration / dive duration"
 	[{{bottom-duration :bottom-duration} :bottom-phase
@@ -381,60 +383,55 @@
 	(/ bottom-duration duration))
 
 (defn get-depth-range-idx
-	"depth_range_index = depth_range_index = depth range / max depth"
+	"depth_range_index = depth range / max depth"
 	[{{depth-range :depth-range} :bottom-phase
 	 max-depth :max-depth}]
 	(/ depth-range max-depth))
-	
+
 (defn get-symmetry-idx
 	"symmetry_index = (max depth time - bottom time begin) / bottom duration"
 	[{max-depth-time :max-depth-time
 	 {bottom-start-time :bottom-start-time
 	  bottom-duration :bottom-duration} :bottom-phase}]
 	  max-depth-time)
-	  (comment
-	"(if (pos? bottom-duration)
-		(/ (- max-depth-time bottom-start-time) bottom-duration)
-		0))"
-		)
 
 (defn get-raggedness-idx
 	"raggedness_index = sum of wiggle depth ranges in bottom phase"
 	[dive-partition]
 	(reduce + (map :depth-range (get-bottom-wiggles dive-partition))))
-
-(defn describe-dive-shape-in-dive
-	"Given a dive, calculate broadness_index, depth_range_index, symmetry_index,
-	and raggedness_index."
+	
+(defn describe-bottom-phase-in-dive
+	"In each dive, calculate depth_range, count_wiggles, broadness-idx, 
+	depth-range-idx, symmetry-idx, and raggedness-idx."
 	[dive-partition]
-	(assoc dive-partition 
-		   :dive-shape 
-		   {:broadness-idx	 (get-broadness-idx   dive-partition)
-		    :depth-range-idx (get-depth-range-idx dive-partition)
-		    :symmetry-idx	 (get-symmetry-idx 	  dive-partition)
-		    :raggedness-idx  (get-raggedness-idx  dive-partition)}))
+	(let [intermediate-step 
+		(update-in dive-partition [:bottom-phase]
+			assoc
+			:depth-range   (get-depth-range	  dive-partition)
+			:count-wiggles (get-count-wiggles dive-partition))]
+		(update-in
+			intermediate-step
+			[:bottom-phase]
+			assoc
+			:broadness-idx	 (get-broadness-idx   intermediate-step)
+			:depth-range-idx (get-depth-range-idx intermediate-step)
+			:symmetry-idx	 (get-symmetry-idx 	  intermediate-step)
+			:raggedness-idx  (get-raggedness-idx  intermediate-step))))
 
 ;; Full step
-(defn describe-dive-shape
-	"Calculate broadness-idx, depth-range-idx, symmetry-idx, raggedness-idx."
+(defn describe-bottom-phase
+	"Calculate the statistics which describe the bottom phase."
 	[dive-data]
-	(map (partial dives-only describe-dive-shape-in-dive) dive-data))
-
-
+	(map-dives-only describe-bottom-phase-in-dive dive-data))
+	
+	
 ;;; STEP 8: Categorize dive shape
 
 ;; Substeps
-(defn match [subject & clauses]
-	{:pre (even? (count clauses))}
-	(->> (partition 2 clauses)
-		(map (fn [[test result]] (if (test subject) result)))
-		(filter true?)
-		first))
-
 (defn V-dive?
 	"Checks a dive against the V shape parameters: 
 	broadness_index < Tbroadness"
-	[{{broadness-idx :broadness-idx} :dive-shape}]
+	[{{broadness-idx :broadness-idx} :bottom-phase}]
 	(< broadness-idx Tbroadness))
 
 (defn u-dive?
@@ -457,31 +454,23 @@
 		  W-wiggles		 (filter #(< (:max-depth %) ledge-depth) bottom-wiggles)]
 		(pos? (count W-wiggles))))
 
-(defn undef-dive?
-	"If no other dive shape applies."
-	[dive-partition]
-	:undefined)
-
-(defn get-shape-category
-	"Match dive against shape conditions."
-	[dive-partition]
-	(match dive-partition
-		V-dive? :V
-		u-dive? :u
-		U-dive? :U
-		W-dive? :W
-		undef-dive? :undefined))
-
-(defn categorize-dive-shape-in-dive
+(defn identify-dive-shape-in-dive
 	"Assoc shape category in dive shape hash."
 	[dive-partition]
-	(assoc-in dive-partition [:dive-shape :shape-category] (get-shape-category dive-partition)))
+	(assoc dive-partition 
+		:dive-shape 
+		(condu dive-partition
+			V-dive? :V
+			u-dive? :u
+			U-dive? :U
+			W-dive? :W
+			:undefined)))
 
 ;; Full step
-(defn categorize-dive-shape
-	"Categorize dive into u, U, V, or W."
+(defn identify-dive-shapes
+	"Identify dive shape as u, U, V, or W."
 	[dive-data]
-	(map (partial dives-only categorize-dive-shape-in-dive) dive-data))
+	(map-dives-only identify-dive-shape-in-dive dive-data))
 
 
 ;;; ALL TOGETHER NOW: Thread data through all steps and spit out dive statistics.
@@ -495,7 +484,7 @@
 		 partition-dives
 		 calc-vert-vel
 		 identify-elements
+		 locate-bottom-phase
 		 identify-phases
 		 describe-bottom-phase
-		 describe-dive-shape
-		 categorize-dive-shape))
+		 identify-dive-shapes))

@@ -88,7 +88,7 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
   :dive-points ({:depth 
 				 :time
 				 :vert-vel})
-  :elements	({:type
+  :elements	   ({:type
 				 :start-time
 				 :end-time
 				 :duration
@@ -97,11 +97,12 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 				 :depth-range})})
 ```
 
-###STEP 5: Get bottom phase bounds
+###STEP 5: Locate bottom phase
 ####New data:
 ```
 :bottom-phase {:bottom-start-time
-			   :bottom-end-time}
+			   :bottom-end-time
+		   	   :bottom-duration}
 ```
 ####Output:	
 ```
@@ -115,7 +116,7 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
   :dive-points ({:depth 
 				 :time
 				 :vert-vel})
-  :elements	({:type
+  :elements	   ({:type
 				 :start-time
 				 :end-time
 				 :duration
@@ -123,7 +124,8 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 				 :max-depth
 				 :depth-range})
   :bottom-phase {:bottom-start-time
-				 :bottom-end-time}})
+				 :bottom-end-time
+			 	 :bottom-duration}})
 ```
 
 ###STEP 6: Identify phases
@@ -144,7 +146,7 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 				 :time
 				 :vert-vel
 				 :phase})
-  :elements	({:type
+  :elements	   ({:type
 				 :start-time
 				 :end-time
 				 :duration
@@ -155,43 +157,11 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 				 :bottom-end-time}})
 ```
 
-###STEP 7: Quantify bottom phase
+####STEP 7: Describe bottom phase
 ####New data:
 ```
-:bottom-duration
 :depth-range
 :count-wiggles
-```
-####Output:
-```
-({:dive-idx
-  :start-time
-  :end-time
-  :duration
-  :max-depth
-  :max-depth-time
-  :ledge-depth
-  :dive-points ({:depth 
-				 :time
-				 :vert-vel
-				 :phase})
-  :elements	({:type
-				 :start-time
-				 :end-time
-				 :duration
-				 :min-depth
-				 :max-depth
-				 :depth-range})
-  :bottom-phase {:bottom-start-time
-				 :bottom-end-time
-				 :bottom-duration
-				 :depth-range
-				 :count-wiggles}})
-```
-
-####STEP 8: Describe bottom phase
-####New data:
-```
 :broadness-idx 
 :depth-range-idx 
 :symmetry-idx 
@@ -210,7 +180,7 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 				 :time
 				 :vert-vel
 				 :phase})
-  :elements	({:type
+  :elements	   ({:type
 				 :start-time
 				 :end-time
 				 :duration
@@ -228,7 +198,7 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 				 :raggedness-idx}})
 ```
 
-###STEP 9: Categorize dive shape
+###STEP 8: Identify dive shape
 ####New Data:
 ```
 :dive-shape
@@ -247,7 +217,7 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 				 :time
 				 :vert-vel
 				 :phase})
-  :elements	({:type
+  :elements	   ({:type
 				 :start-time
 				 :end-time
 				 :duration
