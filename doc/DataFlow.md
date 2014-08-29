@@ -1,8 +1,8 @@
 #Soundings in Fathoms: Data Flow
 
-Soundings in Fathoms takes as input the data collected by a TDR. More specifically, it takes a collection of points (dive-data) where each point is a hash map with depth and time. 
+Soundings in Fathoms takes as input the data collected by a TDR. More specifically, it takes a collection of points (```dive-data```) where each point is a hash map with depth and time. 
 
-The dive-data is run through a series of transformations, outputting a list of dive-partitions. Each dive-partition has a list of its points as well as the variables and statistics which describe the dive. This document describes the flow of data through these transformations.
+The ```dive-data``` is run through a series of transformations, outputting a list of ```dive-partitions```. Each ```dive-partition``` has a list of its points as well as the variables and statistics which describe the dive. This document describes the flow of data through these transformations.
 
 ####Input 
 ```
