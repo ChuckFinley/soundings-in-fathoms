@@ -104,36 +104,17 @@
 					   
 ;;; STEP 3: Calculate vertical velocity
 
-;; Substeps
-(defn vert-vel
-	"Calculate the vertical velocity of a point."
-	[{t1 :time d1 :depth} {t2 :time d2 :depth}]
-	(/ (- d2 d1) (- t2 t1)))
-
-(defn assoc-vert-vel
-	"Given two points, associate the first point's vertical velocity."
-	[[p1 p2]]
-	(assoc p1 :vert-vel (vert-vel p1 p2)))
-
-(defn assoc-final-vert-vel
-	"Last point doesn't have a next point, so vertical velocity is 0."
-	[last-point dive-points]
-	(concat dive-points [(assoc last-point :vert-vel 0)]))
-
-(defn dive-vert-vel
-	"Given a dive partition, calculate vertical velocity at each point."
-	[{:keys [dive-points] :as dive-partition}]
-	(->> dive-points
-		 (partition 2 1)
-	 	 (map assoc-vert-vel)
-	 	 (assoc-final-vert-vel (last dive-points))
-		 (assoc dive-partition :dive-points)))
-
-;; Full step
-(defn calc-vert-vel
-	"Calculate vertical velocity as forward slope of depth over time."
-	[dive-data]
-	(map dive-vert-vel dive-data))
+(letfn [(assoc-vert-vel [[{t1 :time d1 :depth :as p1} p2]]
+			(assoc p1 :vert-vel
+				(if-let [{t2 :time d2 :depth} p2]
+					(/ (- d2 d1) (- t2 t1))
+					0)))
+		(vert-vel-in-dive [dive-points]
+			(map assoc-vert-vel (partition-all 2 1 dive-points)))]
+	(defn calc-vert-vel
+		"Calculate vertical velocity as forward slope of depth over time."
+		[dive-data]
+		(map #(update-in % [:dive-points] vert-vel-in-dive) dive-data)))
 
 
 ;;; STEP 4: Identify elements
