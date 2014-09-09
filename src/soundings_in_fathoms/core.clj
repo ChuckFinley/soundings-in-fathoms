@@ -65,73 +65,28 @@
 
 ;;; STEP 1: Split datapoints into dives
 
-;; Substeps
-(defn drop-leading-dive-points
-	"Drop leading points that start mid-dive. Dive data should begin with surface time."
-	[dive-data]
-	(drop-while #(>= (:depth %) Tmin-depth) dive-data))
-
-(defn split-dives-at-surface
-	"Splits dive data into surface and submerged periods by comparing depth to 
-	the Tmin-depth threshold"
-	[dive-data]
-	(partition-by #(< (:depth %) Tmin-depth) dive-data))
-
-(defn assign-dive-indices
-	"Takes a list of alternating surface and dive lists, then assigns dive 
-	indices. Surface period -x is followed by dive x."
-	[dive-data]
-	(map 
-		(fn [dive-points dive-idx] (map #(assoc % :dive-idx dive-idx) dive-points))
-		dive-data 
-		(interleave (iterate dec -1) (iterate inc 1))))
-
-;; Full step
-(defn identify-dives
-	"Takes dive data (time and depth vectors, e.g. from get-dive-data) and adds a third vector for dive indices. Drops leading points that are mid-dive."
-	[dive-data]
-	(->> dive-data
-		 drop-leading-dive-points
-		 split-dives-at-surface
-		 assign-dive-indices))
+(letfn [(submerged? [point] (>= (:depth point) Tmin-depth))
+        (surface? [point] (not (submerged? point)))
+        (dive-indices [] (interleave (iterate dec -1) (iterate inc 1)))
+        (assoc-dive-idx [idx partition] (hash-map :dive-idx idx :dive-points partition))]
+  (defn identify-dives [dive-data]
+    (->> dive-data
+         (drop-while submerged?)
+         (partition-by surface?)
+         (map assoc-dive-idx (dive-indices)))))
 
 
 ;;; STEP 2: Describe dives. Associate descriptive statistics with each 
 ;;; dive (e.g. start-time, max-depth). See outline.txt for full list.
 
-;; Substeps
-
-(defn drop-idx-from-points
-	"Drop dive-idx key from hashes in dive-points."
-	[points]
-	(map #(dissoc % :dive-idx) points))
-	
-(defn dive-to-hash
-	"Takes a partition of dive points and returns the dive hash."
-	[dive-partition]
-	{:dive-idx 	  (->> dive-partition first :dive-idx)
-	 :dive-points (drop-idx-from-points dive-partition)})
-
-(defn get-max-depth-time
-	"Given a list of dive points and a max depth, get the first time
-	 the dive reached that depth"
-	 [dive-points max-depth]
-	 (->> dive-points
-	 	  (filter #(= max-depth (:depth %)))
-		  first
-		  :time))
-
-(defn extract-descriptions
-	"Extracts descriptive stats from a dive partition."
-	[dive-partition]
-	(let [dive-points	  (:dive-points dive-partition)
-		  times 		  (map :time dive-points)
-		  depths 		  (map :depth dive-points)
-		  start-time 	  (apply min times)
-		  end-time 		  (apply max times)
+(letfn [(describe-dive [dive-partition]
+	(let [points 		  (:dive-points dive-partition)
+		  start-time 	  (:time (first points))
+		  end-time 		  (:time (last points))
 		  duration 		  (- end-time start-time)
-		  max-depth 	  (apply max depths)
-		  max-depth-time  (get-max-depth-time dive-points max-depth)
+		  deepest-point   (apply max-key :depth points)
+		  max-depth		  (:depth deepest-point)
+		  max-depth-time  (:time deepest-point)
 		  ledge-depth 	  (* max-depth Tledge-depth)]
 		(assoc dive-partition
 			:start-time 	start-time
@@ -139,17 +94,12 @@
 		 	:duration 		duration
 		 	:max-depth 		max-depth
 		 	:max-depth-time	max-depth-time
-		 	:ledge-depth 	ledge-depth)))
-
-;; Full step
-(defn partition-dives
-	"Takes dive data with dive indices and partitions points into dives and
-	inter-dive periods. With each dive associates start and end time, max 
-	depth, etc. See outline.txt for full list."
-	[dive-data]
-	(->> dive-data
-	 	 (map dive-to-hash)
-		 (map extract-descriptions)))
+		 	:ledge-depth 	ledge-depth)))]
+	(defn describe-dives 
+		"Associates each dive with start and end time, max depth, etc. See 
+		outline.txt for full list."
+		[dive-data] 
+		(map describe-dive dive-data)))
 					   
 					   
 ;;; STEP 3: Calculate vertical velocity
@@ -481,7 +431,7 @@
 	[dive-data]
 	(->> dive-data
 		 identify-dives
-		 partition-dives
+		 describe-dives
 		 calc-vert-vel
 		 identify-elements
 		 locate-bottom-phase
