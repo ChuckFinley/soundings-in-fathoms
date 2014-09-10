@@ -299,9 +299,10 @@
 
 (defn get-depth-range
 	[{:keys [bottom-phase dive-points]}]
-	(let [bottom-points (filter (partial bottom-point? bottom-phase) dive-points)
-		  depths		(map :depth bottom-points)]
-		(- (apply max depths) (apply min depths))))
+	(let [bottom-points (filter (partial bottom-point? bottom-phase) dive-points)]
+		(if-let [depths (seq (map :depth bottom-points))]
+			(- (apply max depths) (apply min depths))
+			0)))
 		
 (defn get-count-wiggles
 	[dive-partition]
@@ -311,7 +312,7 @@
 	"broadness_index = bottom duration / dive duration"
 	[{{bottom-duration :bottom-duration} :bottom-phase
 	 duration :duration}]
-	(/ bottom-duration duration))
+	(if (pos? duration) (/ bottom-duration duration) 0))
 
 (defn get-depth-range-idx
 	"depth_range_index = depth range / max depth"
