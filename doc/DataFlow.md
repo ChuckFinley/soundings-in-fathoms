@@ -17,9 +17,9 @@ The ```dive-data``` is run through a series of transformations, outputting a lis
 ```
 ####Output:
 ```
-({:dive-idx 
-  :depth 
-  :time})
+({:dive-idx
+  :dive-points ({:depth 
+				 :time})})
 ```
 
 ###STEP 2: Describe dives	
